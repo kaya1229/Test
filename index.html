@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KICKFLIP 3D SHARP WAVE</title>
+    <title>KICKFLIP 3D FIXED WAVE HEIGHT</title>
     <style>
         body { margin: 0; background: #ffffff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
         canvas { display: block; }
@@ -12,7 +12,7 @@
 </head>
 <body>
 
-<div id="info">SHARP EDGE WAVE SYSTEM</div>
+<div id="info">MAX WAVE HEIGHT: GLOBE HALF (Y=4.5)</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -40,68 +40,22 @@
         const lightstick = new THREE.Group();
         scene.add(lightstick);
 
-        // 1. 투명 구체
+        // 1. 투명 구체 (중심 y=4.5, 반지름 2.8)
         globe = new THREE.Mesh(
             new THREE.SphereGeometry(2.8, 64, 64),
-            new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: 0.1, shininess: 100 })
+            new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: 0.12, shininess: 100 })
         );
         globe.position.y = 4.5;
         lightstick.add(globe);
 
-        // 2. 명확한 가장자리를 가진 물결 (커스텀 쉐이더)
-        const waveUniforms = {
-            time: { value: 0 },
-            color: { value: new THREE.Color(0x333333) }, // 시크한 다크 그레이
-            opacity: { value: 0.6 },
-            bTilt: { value: 0 },
-            bY: { value: 0 }
-        };
-
-        const waveVertexShader = `
-            varying vec2 vUv;
-            uniform float time;
-            uniform float bTilt;
-            uniform float bY;
-            void main() {
-                vUv = uv;
-                // 보드 기울기에 따른 정점별 가중치 계산
-                float xOffset = position.x;
-                float tiltImpact = -xOffset * bTilt * 1.2;
-                float heightImpact = (5.5 - bY) * 0.5;
-
-                // 역동적인 파동 생성
-                float wave = sin(position.x * 2.0 + time * 4.0) * (0.25 + tiltImpact + heightImpact);
-                wave += cos(position.y * 3.0 + time * 2.0) * 0.1;
-
-                vec3 newPos = vec3(position.x, position.y, position.z + wave);
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(newPos, 1.0);
-            }
-        `;
-
-        const waveFragmentShader = `
-            varying vec2 vUv;
-            uniform vec3 color;
-            uniform float opacity;
-            void main() {
-                // step 함수를 사용하여 가장자리를 칼같이 자름 (UV 경계선 명확화)
-                float edgeX = step(0.01, vUv.x) * step(vUv.x, 0.99);
-                float edgeY = step(0.01, vUv.y) * step(vUv.y, 0.99);
-                float alpha = opacity * edgeX * edgeY;
-
-                if (alpha < 0.1) discard; // 경계 밖은 아예 그리지 않음 (Sharp Edge)
-                gl_FragColor = vec4(color, alpha);
-            }
-        `;
-
-        const waveGeo = new THREE.PlaneGeometry(5.2, 1.8, 128, 64);
-        const waveMat = new THREE.ShaderMaterial({
-            uniforms: waveUniforms,
-            vertexShader: waveVertexShader,
-            fragmentShader: waveFragmentShader,
+        // 2. 물결 레이어 (시작 위치 y=3.8)
+        const waveGeo = new THREE.PlaneGeometry(5.2, 1.8, 64, 32); 
+        const waveMat = new THREE.MeshPhongMaterial({
+            color: 0xbbbbbb,
             transparent: true,
+            opacity: 0.5,
             side: THREE.DoubleSide
         });
-
         waveMesh = new THREE.Mesh(waveGeo, waveMat);
         waveMesh.rotation.x = -Math.PI / 2;
         waveMesh.position.set(0, 3.8, 0); 
@@ -157,16 +111,37 @@
         requestAnimationFrame(animate);
         const t = clock.getElapsedTime();
         
+        // 보드 애니메이션
         const bY = 4.8 + Math.sin(t * 1.5) * 0.4;
         const bTilt = Math.sin(t * 1.2) * 0.3; 
         
         boardGroup.position.y = bY;
         boardGroup.rotation.z = bTilt; 
 
-        // 쉐이더 유니폼 업데이트
-        waveMesh.material.uniforms.time.value = t;
-        waveMesh.material.uniforms.bTilt.value = bTilt;
-        waveMesh.material.uniforms.bY.value = bY;
+        // [물결 높이 제한 로직]
+        const pos = waveMesh.geometry.attributes.position;
+        // 구체 절반(y=4.5)까지의 최대 허용 오프셋 = 4.5 - 3.8 = 0.7
+        const maxWaveHeight = 0.7; 
+
+        for (let i = 0; i < pos.count; i++) {
+            const x = pos.getX(i);
+            const y = pos.getY(i);
+            
+            const tiltImpact = -x * bTilt * 0.8; 
+            const heightImpact = (5.5 - bY) * 0.4;
+
+            // 기본 파동 계산
+            let zWave = Math.sin(x * 2.0 + t * 4.0) * (0.2 + tiltImpact + heightImpact);
+            let zDetail = Math.cos(y * 3.0 + t * 2.5) * 0.05;
+            
+            let finalZ = zWave + zDetail;
+
+            // 절반 높이(0.7)를 넘지 않도록 Clamp 처리
+            finalZ = Math.min(finalZ, maxWaveHeight);
+
+            pos.setZ(i, finalZ);
+        }
+        pos.needsUpdate = true;
 
         scene.rotation.y += 0.003;
         renderer.render(scene, camera);
