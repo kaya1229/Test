@@ -70,18 +70,45 @@
         // --- 2. 스케이트보드 (데크 + 트럭 + 바퀴) ---
         boardGroup = new THREE.Group();
 
-        // [데크]
-        const w = 1.3, l = 4.2, r = w / 2;
-        const deckShape = new THREE.Shape();
-        deckShape.absarc(l/2 - r, 0, r, Math.PI * 1.5, Math.PI * 0.5, false);
-        deckShape.absarc(-l/2 + r, 0, r, Math.PI * 0.5, Math.PI * 1.5, false);
-        deckShape.closePath();
+                // --- [데크: 3단 분리 킥 구조로 교체] ---
+        const flatLen = 2.5; // 중앙 평면부 길이
+        const kickLen = 0.85; // 양 끝 들린 부분 길이
 
-        const deckGeo = new THREE.ExtrudeGeometry(deckShape, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02 });
+        // 1. 중앙 평면부 (Flat)
+        const flatShape = new THREE.Shape();
+        flatShape.moveTo(-flatLen/2, -w/2);
+        flatShape.lineTo(flatLen/2, -w/2);
+        flatShape.lineTo(flatLen/2, w/2);
+        flatShape.lineTo(-flatLen/2, w/2);
+        flatShape.closePath();
+
+        const deckGeo = new THREE.ExtrudeGeometry(flatShape, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02 });
         const deckMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.2 });
-        const deck = new THREE.Mesh(deckGeo, deckMat);
-        deck.rotation.x = Math.PI / 2; // 데크를 눕힘
-        boardGroup.add(deck);
+        const deckMid = new THREE.Mesh(deckGeo, deckMat);
+        deckMid.rotation.x = Math.PI / 2;
+        boardGroup.add(deckMid);
+
+        // 2. 킥 조각 공통 형태 (반원)
+        const kickShape = new THREE.Shape();
+        kickShape.absarc(0, 0, w/2, Math.PI * 1.5, Math.PI * 0.5, false);
+        kickShape.lineTo(0, w/2);
+        kickShape.lineTo(0, -w/2);
+        const kickGeo = new THREE.ExtrudeGeometry(kickShape, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02 });
+
+        // 3. 앞쪽 킥 (Nose) 배치 및 꺾기
+        const nose = new THREE.Mesh(kickGeo, deckMat);
+        nose.rotation.x = Math.PI / 2;
+        nose.position.x = flatLen / 2; 
+        nose.rotation.z = -0.3; // <--- 위로 꺾이는 각도
+        boardGroup.add(nose);
+
+        // 4. 뒤쪽 킥 (Tail) 배치 및 꺾기
+        const tail = new THREE.Mesh(kickGeo, deckMat);
+        tail.rotation.x = Math.PI / 2;
+        tail.rotation.y = Math.PI; // 반대 방향 회전
+        tail.position.x = -flatLen / 2; 
+        tail.rotation.z = -0.3; // <--- 위로 꺾이는 각도
+        boardGroup.add(tail);
 
         // [트럭 및 바퀴]
         const truckGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.2, 16);
