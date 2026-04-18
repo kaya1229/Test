@@ -2,22 +2,17 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KICKFLIP 3D FIXED WAVE HEIGHT</title>
+    <title>KICKFLIP 3D NATIVE WAVE</title>
     <style>
         body { margin: 0; background: #ffffff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
         canvas { display: block; }
-        #info { position: absolute; bottom: 5%; width: 100%; text-align: center; color: #ccc; font-size: 11px; pointer-events: none; font-family: sans-serif; letter-spacing: 1px;}
     </style>
 </head>
 <body>
 
-<div id="info">MAX WAVE HEIGHT: GLOBE HALF (Y=4.5)</div>
-
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-    let scene, camera, renderer, boardGroup, globe, waveMesh;
-    let clock = new THREE.Clock();
+    let scene, camera, renderer, boardGroup, waveMesh, clock = new THREE.Clock();
 
     init();
     animate();
@@ -29,7 +24,6 @@
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
         const mainLight = new THREE.DirectionalLight(0xffffff, 1.5);
@@ -41,17 +35,17 @@
         scene.add(lightstick);
 
         // 1. 투명 구체 (중심 y=4.5, 반지름 2.8)
-        globe = new THREE.Mesh(
+        const globe = new THREE.Mesh(
             new THREE.SphereGeometry(2.8, 64, 64),
             new THREE.MeshPhongMaterial({ color: 0xffffff, transparent: true, opacity: 0.12, shininess: 100 })
         );
         globe.position.y = 4.5;
         lightstick.add(globe);
 
-        // 2. 물결 레이어 (시작 위치 y=3.8)
+        // 2. 물결 레이어 (기본 재질 사용, 시작 위치 y=3.8)
         const waveGeo = new THREE.PlaneGeometry(5.2, 1.8, 64, 32); 
         const waveMat = new THREE.MeshPhongMaterial({
-            color: 0xbbbbbb,
+            color: 0x00f2ff,
             transparent: true,
             opacity: 0.5,
             side: THREE.DoubleSide
@@ -63,29 +57,12 @@
 
         // 3. 스케이트보드
         boardGroup = new THREE.Group();
-        const deckShape = new THREE.Shape();
-        deckShape.moveTo(-1.8, 0);
-        deckShape.quadraticCurveTo(0, -0.1, 1.8, 0);
-        deckShape.lineTo(2.0, 0.35);
-        deckShape.lineTo(-2.0, 0.35);
-        deckShape.closePath();
-
         const deck = new THREE.Mesh(
-            new THREE.ExtrudeGeometry(deckShape, { depth: 1.3, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.05 }),
+            new THREE.ExtrudeGeometry(createDeckShape(), { depth: 1.3, bevelEnabled: true, bevelThickness: 0.02 }),
             new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9, roughness: 0.1 })
         );
         deck.position.set(0, 0, -0.65); 
         boardGroup.add(deck);
-
-        const wheelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.15, 32);
-        const wheelMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-        [[-1.2, 0.4], [1.2, 0.4], [-1.2, -0.4], [1.2, -0.4]].forEach(p => {
-            const w = new THREE.Mesh(wheelGeo, wheelMat);
-            w.rotation.x = Math.PI / 2;
-            w.position.set(p[0], -0.2, p[1]);
-            boardGroup.add(w);
-        });
-
         boardGroup.position.y = 4.8;
         lightstick.add(boardGroup);
 
@@ -99,12 +76,16 @@
         lightstick.add(handle);
 
         lightstick.position.y = -1;
+    }
 
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
+    function createDeckShape() {
+        const shape = new THREE.Shape();
+        shape.moveTo(-1.8, 0);
+        shape.quadraticCurveTo(0, -0.1, 1.8, 0);
+        shape.lineTo(2.0, 0.35);
+        shape.lineTo(-2.0, 0.35);
+        shape.closePath();
+        return shape;
     }
 
     function animate() {
@@ -114,14 +95,12 @@
         // 보드 애니메이션
         const bY = 4.8 + Math.sin(t * 1.5) * 0.4;
         const bTilt = Math.sin(t * 1.2) * 0.3; 
-        
         boardGroup.position.y = bY;
         boardGroup.rotation.z = bTilt; 
 
         // [물결 높이 제한 로직]
         const pos = waveMesh.geometry.attributes.position;
-        // 구체 절반(y=4.5)까지의 최대 허용 오프셋 = 4.5 - 3.8 = 0.7
-        const maxWaveHeight = 0.7; 
+        const maxHeightOffset = 0.7; // 3.8(시작) + 0.7 = 4.5(구체 절반)
 
         for (let i = 0; i < pos.count; i++) {
             const x = pos.getX(i);
@@ -130,16 +109,11 @@
             const tiltImpact = -x * bTilt * 0.8; 
             const heightImpact = (5.5 - bY) * 0.4;
 
-            // 기본 파동 계산
             let zWave = Math.sin(x * 2.0 + t * 4.0) * (0.2 + tiltImpact + heightImpact);
             let zDetail = Math.cos(y * 3.0 + t * 2.5) * 0.05;
             
-            let finalZ = zWave + zDetail;
-
-            // 절반 높이(0.7)를 넘지 않도록 Clamp 처리
-            finalZ = Math.min(finalZ, maxWaveHeight);
-
-            pos.setZ(i, finalZ);
+            // 높이가 0.7(구체 절반 지점)을 넘지 않도록 상한선 고정
+            pos.setZ(i, Math.min(zWave + zDetail, maxHeightOffset));
         }
         pos.needsUpdate = true;
 
