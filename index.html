@@ -108,15 +108,15 @@
         const nose = new THREE.Mesh(kickGeo, deckMat);
         nose.rotation.x = Math.PI / 2;
         nose.position.set(flatLen / 2, 0, 0); // 중앙판 끝에 딱 붙임
-        nose.rotation.y = 0.3; // 위로 휘어짐
+        nose.rotation.y = 0.2; // 위로 휘어짐
         boardGroup.add(nose);
 
         // 4. 뒤쪽 킥 (Tail)
         const tail = new THREE.Mesh(kickGeo, deckMat);
         tail.rotation.x = Math.PI / 2;
-        tail.rotation.y = Math.PI+0.3; // 반대 방향
+        
         tail.position.set(-flatLen / 2, 0, 0); // 중앙판 반대쪽 끝
-        //tail.rotation.y = Math.PI-0.3; // 위로 휘어짐
+    tail.rotation.y = Math.PI-0.2; // 반대 방향
         boardGroup.add(tail);
 
 
