@@ -97,7 +97,7 @@
             // 1. 트럭(축) 배치: 기본 Cylinder(세로)를 X축 기준으로 90도 회전시켜 가로로 눕힙니다.
             const truck = new THREE.Mesh(truckGeo, truckMat);
             // 데크가 눕혀진 방향(X-Y평면)에 맞춰 축을 가로(Y축 방향)로 눕힙니다.
-            truck.rotation.y = Math.PI / 2; 
+            truck.rotation.x = Math.PI / 2; 
             truck.position.set(xPos, 0, -0.15); // 데크 아래쪽(Z축 음수)으로 배치
             boardGroup.add(truck);
 
@@ -107,7 +107,7 @@
                 const wheel = new THREE.Mesh(wheelGeo, wheelMat);
                 
                 // 바퀴를 축의 방향과 일치하게 회전 (Y축 방향으로 눕힘)
-                wheel.rotation.y = Math.PI / 2; 
+                wheel.rotation.x = Math.PI / 2; 
                 
                 // 바퀴가 굴러가는 면이 바깥쪽을 향하도록 세팅
                 // 축의 위치(xPos), 축의 양 끝(yPos), 데크 아래(z)
