@@ -178,8 +178,13 @@
         stick.position.y = -3.2;
         handleGroup.add(stick);
 
-        lightstick.add(handleGroup);
-        lightstick.position.y = -1;}
+                lightstick.add(handleGroup);
+        lightstick.position.y = -1;
+
+        // 화면 크기가 변할 때 대응 (추가)
+        window.addEventListener('resize', onWindowResize, false);
+    } // <--- 여기서 init 함수를 확실히 닫아줍니다.
+
 
 
     function onWindowResize() {
