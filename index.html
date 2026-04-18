@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KICKFLIP 3D FLAT CENTER DECK</title>
+    <title>KICKFLIP 3D REAL TRUCK STRUCTURE</title>
     <style>
         body { margin: 0; background: #ffffff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
         canvas { display: block; }
@@ -16,7 +16,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-    let scene, camera, renderer, boardGroup, globe, handleGroup;
+    let scene, camera, renderer, boardGroup, globe;
     let clock = new THREE.Clock();
 
     init();
@@ -49,111 +49,74 @@
             opacityBottom: { value: 0.5 }
         };
 
-        const vertexShader = `
-            varying vec2 vUv;
-            void main() {
-                vUv = uv;
-                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
-            }
-        `;
-
-        const fragmentShader = `
-            uniform float time;
-            uniform vec3 colorTop;
-            uniform vec3 colorBottom;
-            uniform float opacityTop;
-            uniform float opacityBottom;
-            varying vec2 vUv;
-            void main() {
-                float wave = sin(vUv.x * 12.0 + time * 2.5) * 0.03 + sin(vUv.x * 6.0 - time * 1.5) * 0.02;
-                float edge = 0.5 + wave;
-                float mixFactor = smoothstep(edge - 0.01, edge + 0.01, vUv.y);
-                vec3 finalColor = mix(colorBottom, colorTop, mixFactor);
-                float finalOpacity = mix(opacityBottom, opacityTop, mixFactor);
-                gl_FragColor = vec4(finalColor, finalOpacity);
-            }
-        `;
-
         const globeGeo = new THREE.SphereGeometry(2.8, 128, 128);
         const globeMat = new THREE.ShaderMaterial({
             uniforms: waveUniforms,
-            vertexShader: vertexShader,
-            fragmentShader: fragmentShader,
-            transparent: true,
-            depthWrite: false,
-            side: THREE.DoubleSide
+            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+            fragmentShader: `
+                uniform float time; uniform vec3 colorTop; uniform vec3 colorBottom;
+                uniform float opacityTop; uniform float opacityBottom; varying vec2 vUv;
+                void main() {
+                    float wave = sin(vUv.x * 12.0 + time * 2.5) * 0.03 + sin(vUv.x * 6.0 - time * 1.5) * 0.02;
+                    float edge = 0.5 + wave;
+                    float mixFactor = smoothstep(edge - 0.01, edge + 0.01, vUv.y);
+                    gl_FragColor = vec4(mix(colorBottom, colorTop, mixFactor), mix(opacityBottom, opacityTop, mixFactor));
+                }
+            `,
+            transparent: true, depthWrite: false, side: THREE.DoubleSide
         });
-
         globe = new THREE.Mesh(globeGeo, globeMat);
         globe.position.y = 4.5;
         lightstick.add(globe);
 
-        // --- 2. 평면 유지 + 킥 데크 구현 ---
+        // --- 2. 스케이트보드 (데크 + 트럭 + 바퀴) ---
         boardGroup = new THREE.Group();
 
+        // [데크] 얇은 평면 형태
         const w = 1.3, l = 4.2, r = w / 2;
         const deckShape = new THREE.Shape();
-        // 양 끝 반원형 디자인
         deckShape.absarc(l/2 - r, 0, r, Math.PI * 1.5, Math.PI * 0.5, false);
         deckShape.absarc(-l/2 + r, 0, r, Math.PI * 0.5, Math.PI * 1.5, false);
         deckShape.closePath();
 
-        const extrudeSettings = { 
-            depth: 0.04, // 데크 자체 두께는 더 얇게
-            bevelEnabled: true, 
-            bevelThickness: 0.02, 
-            bevelSize: 0.02, 
-            bevelSegments: 3 
-        };
-        const deckGeo = new THREE.ExtrudeGeometry(deckShape, extrudeSettings);
-
-        // 정점 변형: 중앙 평면을 확실히 유지
-        /*const pos = deckGeo.attributes.position;
-        // kickStart 지점을 더 바깥으로 밀어 중앙 평면 구간 확보 (l/2가 끝이므로 1.4 지점부터 킥 시작)
-        const kickStart = 1.4; 
-
-        for (let i = 0; i < pos.count; i++) {
-            let x = pos.getX(i);
-            // x값이 kickStart보다 작은 중앙 부분은 아래 로직을 타지 않아 평평함 유지
-            if (Math.abs(x) > kickStart) {
-                // 끝부분만 급격하게 솟아오름 (제곱근 계수 3.5로 강화)
-                let lift = Math.pow(Math.abs(x) - kickStart, 2) * 3.5; 
-                pos.setZ(i, pos.getZ(i) + lift); 
-            }
-        }
-        deckGeo.computeVertexNormals();*/
-
+        const deckGeo = new THREE.ExtrudeGeometry(deckShape, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02 });
         const deckMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.2 });
         const deck = new THREE.Mesh(deckGeo, deckMat);
         deck.rotation.x = Math.PI / 2; 
         boardGroup.add(deck);
 
-        // 바퀴 (데크 평면 구간에 가로로 눕혀서 배치)
-const wheelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.15, 32);
-const wheelMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        // [트럭 및 바퀴 세팅]
+        const truckGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.2, 16); // 짧은 면(너비) 방향으로 놓일 축
+        const truckMat = new THREE.MeshStandardMaterial({ color: 0x777777 });
+        const wheelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.15, 32);
+        const wheelMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
 
-[[-1.2, 0.35], [1.2, 0.35], [-1.2, -0.35], [1.2, -0.35]].forEach(p => {
-    const w = new THREE.Mesh(wheelGeo, wheelMat);
-    
-    // 1. 바퀴 자체를 옆으로 눕힙니다 (Z축 기준으로 회전하여 데크와 평행하게)
-    w.rotation.z = Math.PI / 2; 
-    
-    // 2. 데크가 90도 회전되어 있으므로, 바퀴의 'y'와 'z' 위치를 데크 좌표계에 맞게 설정
-    // p[0]은 가로(X), p[1]은 세로(Y)
-    // 마지막 값 -0.1은 데크 아래쪽(Z축 방향)으로 살짝 내리는 값입니다.
-    w.position.set(p[0], p[1], -0.1); 
-    
-    boardGroup.add(w);
-});
+        const truckPositionsX = [-1.3, 1.3]; // 데크의 앞/뒤 위치
 
+        truckPositionsX.forEach(xPos => {
+            // 1. 트럭(축) 배치: 기본 Cylinder는 Y축 방향이므로 데크의 짧은 면과 일치함
+            const truck = new THREE.Mesh(truckGeo, truckMat);
+            truck.position.set(xPos, 0, -0.12); // 데크 바로 아래 밀착
+            boardGroup.add(truck);
+
+            // 2. 바퀴 배치: 트럭의 양 끝단(Y축 방향)에 정렬
+            const wheelDist = 0.55; 
+            [wheelDist, -wheelDist].forEach(yPos => {
+                const wheel = new THREE.Mesh(wheelGeo, wheelMat);
+                // 바퀴를 Z축으로 회전시켜 굴러가는 면을 앞뒤(X축)로 맞춤
+                wheel.rotation.z = Math.PI / 2; 
+                wheel.position.set(xPos, yPos, -0.12); 
+                boardGroup.add(wheel);
+            });
+        });
 
         boardGroup.position.y = 4.8; 
-        boardGroup.rotation.z = Math.PI / 12;
+        boardGroup.rotation.z = Math.PI / 12; // 사선 배치
         boardGroup.rotation.y = -Math.PI / 6;
         lightstick.add(boardGroup);
 
         // --- 3. 손잡이 섹션 ---
-        handleGroup = new THREE.Group();
+        const handleGroup = new THREE.Group();
         const connector = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.4, 0.6, 32), new THREE.MeshStandardMaterial({ color: 0xffffff }));
         connector.position.y = 1.3;
         handleGroup.add(connector);
@@ -162,13 +125,8 @@ const wheelMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
         stick.position.y = -3.2;
         handleGroup.add(stick);
 
-        const button = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.1, 32), new THREE.MeshStandardMaterial({ color: 0x333333 }));
-        button.rotation.x = Math.PI / 2;
-        button.position.set(0, -1, 1.35);
-        handleGroup.add(button);
-
         lightstick.add(handleGroup);
-        lightstick.position.y = -1; 
+        lightstick.position.y = -1;
 
         window.addEventListener('resize', onWindowResize, false);
     }
@@ -182,9 +140,9 @@ const wheelMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
     function animate() {
         requestAnimationFrame(animate);
         let elapsedTime = clock.getElapsedTime();
-        
         if (globe) globe.material.uniforms.time.value = elapsedTime;
 
+        // 보드 공중 부양 애니메이션
         boardGroup.position.y = 4.8 + Math.sin(elapsedTime * 1.5) * 0.25;
         boardGroup.rotation.x = Math.sin(elapsedTime * 0.8) * 0.1;
         
