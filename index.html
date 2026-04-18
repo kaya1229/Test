@@ -128,15 +128,24 @@
         deck.rotation.x = Math.PI / 2; 
         boardGroup.add(deck);
 
-        // 바퀴 (평평한 평면 구간 끝자락에 배치)
-        const wheelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.15, 32);
-        const wheelMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-        [[-1.2, 0.35], [1.2, 0.35], [-1.2, -0.35], [1.2, -0.35]].forEach(p => {
-            const w = new THREE.Mesh(wheelGeo, wheelMat);
-            w.rotation.x = Math.PI / 2;
-            w.position.set(p[0], p[1], -0.1); 
-            boardGroup.add(w);
-        });
+        // 바퀴 (데크 평면 구간에 가로로 눕혀서 배치)
+const wheelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.15, 32);
+const wheelMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+
+[[-1.2, 0.35], [1.2, 0.35], [-1.2, -0.35], [1.2, -0.35]].forEach(p => {
+    const w = new THREE.Mesh(wheelGeo, wheelMat);
+    
+    // 1. 바퀴 자체를 옆으로 눕힙니다 (Z축 기준으로 회전하여 데크와 평행하게)
+    w.rotation.z = Math.PI / 2; 
+    
+    // 2. 데크가 90도 회전되어 있으므로, 바퀴의 'y'와 'z' 위치를 데크 좌표계에 맞게 설정
+    // p[0]은 가로(X), p[1]은 세로(Y)
+    // 마지막 값 -0.1은 데크 아래쪽(Z축 방향)으로 살짝 내리는 값입니다.
+    w.position.set(p[0], p[1], -0.1); 
+    
+    boardGroup.add(w);
+});
+
 
         boardGroup.position.y = 4.8; 
         boardGroup.rotation.z = Math.PI / 12;
