@@ -93,22 +93,29 @@
 
         const truckPositionsX = [-1.3, 1.3]; // 데크의 앞/뒤 위치
 
-        truckPositionsX.forEach(xPos => {
-            // 1. 트럭(축) 배치: 기본 Cylinder는 Y축 방향이므로 데크의 짧은 면과 일치함
+                truckPositionsX.forEach(xPos => {
+            // 1. 트럭(축) 배치: 기본 Cylinder(세로)를 X축 기준으로 90도 회전시켜 가로로 눕힙니다.
             const truck = new THREE.Mesh(truckGeo, truckMat);
-            truck.position.set(xPos, 0, -0.12); // 데크 바로 아래 밀착
+            // 데크가 눕혀진 방향(X-Y평면)에 맞춰 축을 가로(Y축 방향)로 눕힙니다.
+            truck.rotation.x = Math.PI / 2; 
+            truck.position.set(xPos, 0, -0.15); // 데크 아래쪽(Z축 음수)으로 배치
             boardGroup.add(truck);
 
-            // 2. 바퀴 배치: 트럭의 양 끝단(Y축 방향)에 정렬
+            // 2. 바퀴 배치: 트럭의 양 끝단에 정렬
             const wheelDist = 0.55; 
             [wheelDist, -wheelDist].forEach(yPos => {
                 const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-                // 바퀴를 Z축으로 회전시켜 굴러가는 면을 앞뒤(X축)로 맞춤
-                wheel.rotation.z = Math.PI / 2; 
-                wheel.position.set(xPos, yPos, -0.12); 
+                
+                // 바퀴를 축의 방향과 일치하게 회전 (Y축 방향으로 눕힘)
+                wheel.rotation.x = Math.PI / 2; 
+                
+                // 바퀴가 굴러가는 면이 바깥쪽을 향하도록 세팅
+                // 축의 위치(xPos), 축의 양 끝(yPos), 데크 아래(z)
+                wheel.position.set(xPos, yPos, -0.15); 
                 boardGroup.add(wheel);
             });
         });
+
 
         boardGroup.position.y = 4.8; 
         boardGroup.rotation.z = Math.PI / 12; // 사선 배치
