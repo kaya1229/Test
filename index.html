@@ -106,7 +106,7 @@
             [wheelDist, -wheelDist].forEach(y => {
                 const wheel = new THREE.Mesh(wheelGeo, wheelMat);
                 // 바퀴를 축 방향에 맞춰서 90도 회전
-                wheel.rotation.z = Math.PI / 2; 
+                //wheel.rotation.z = Math.PI / 2; 
                 wheel.position.y = y; // 축(Shaft)을 따라 이동
                 truckAssembly.add(wheel);
             });
