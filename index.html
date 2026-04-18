@@ -2,17 +2,13 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KICKFLIP 3D TRUCK FIXED</title>
+    <title>KICKFLIP 3D VERTICAL WHEELS</title>
     <style>
         body { margin: 0; background: #ffffff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
         canvas { display: block; }
-        #info { position: absolute; bottom: 5%; width: 100%; text-align: center; color: #bbb; font-size: 11px; pointer-events: none; font-family: sans-serif; letter-spacing: 1px;}
     </style>
 </head>
 <body>
-
-<div id="info">KICKFLIP OFFICIAL LIGHTSTICK CONCEPT</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
@@ -29,124 +25,90 @@
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
-        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
         document.body.appendChild(renderer.domElement);
 
-        const mainLight = new THREE.DirectionalLight(0xffffff, 1.3);
-        mainLight.position.set(5, 10, 7.5);
-        scene.add(mainLight);
-        scene.add(new THREE.AmbientLight(0xffffff, 0.7));
+        scene.add(new THREE.AmbientLight(0xffffff, 0.8));
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+        directionalLight.position.set(5, 10, 7.5);
+        scene.add(directionalLight);
 
         const lightstick = new THREE.Group();
         scene.add(lightstick);
 
-        // --- 1. 푸른색 물결 쉐이더 구체 ---
-        const waveUniforms = {
-            time: { value: 0 },
-            colorTop: { value: new THREE.Color(0xffffff) },
-            colorBottom: { value: new THREE.Color(0x0055ff) }
-        };
-
-        const globeGeo = new THREE.SphereGeometry(2.8, 128, 128);
-        const globeMat = new THREE.ShaderMaterial({
-            uniforms: waveUniforms,
-            vertexShader: `varying vec2 vUv; void main() { vUv = uv; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
-            fragmentShader: `
-                uniform float time; uniform vec3 colorTop; uniform vec3 colorBottom;
-                varying vec2 vUv;
-                void main() {
-                    float wave = sin(vUv.x * 12.0 + time * 2.5) * 0.03 + sin(vUv.x * 6.0 - time * 1.5) * 0.02;
-                    float edge = 0.5 + wave;
-                    float mixFactor = smoothstep(edge - 0.01, edge + 0.01, vUv.y);
-                    gl_FragColor = vec4(mix(colorBottom, colorTop, mixFactor), mix(0.5, 0.1, mixFactor));
-                }
-            `,
-            transparent: true, depthWrite: false, side: THREE.DoubleSide
-        });
-        globe = new THREE.Mesh(globeGeo, globeMat);
-        globe.position.y = 4.5;
-        lightstick.add(globe);
-
-        // --- 2. 스케이트보드 (데크 + 트럭 + 바퀴) ---
+        // --- 1. 데크 (Deck) ---
         boardGroup = new THREE.Group();
-
-        // [데크]
         const w = 1.3, l = 4.2, r = w / 2;
         const deckShape = new THREE.Shape();
         deckShape.absarc(l/2 - r, 0, r, Math.PI * 1.5, Math.PI * 0.5, false);
         deckShape.absarc(-l/2 + r, 0, r, Math.PI * 0.5, Math.PI * 1.5, false);
         deckShape.closePath();
 
-        const deckGeo = new THREE.ExtrudeGeometry(deckShape, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02 });
+        const deckGeo = new THREE.ExtrudeGeometry(deckShape, { depth: 0.08, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02 });
         const deckMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.2 });
         const deck = new THREE.Mesh(deckGeo, deckMat);
-        deck.rotation.x = Math.PI / 2; // 데크를 눕힘
+        
+        // 데크를 X-Y 평면으로 눕힘
+        deck.rotation.x = Math.PI / 2; 
         boardGroup.add(deck);
 
-        // [트럭 및 바퀴]
+        // --- 2. 축(Truck)과 바퀴(Wheel) ---
         const truckGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.2, 16);
-        const truckMat = new THREE.MeshStandardMaterial({ color: 0x777777 });
+        const truckMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
         const wheelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.15, 32);
-        const wheelMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const wheelMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee });
 
-        const truckXPositions = [-1.3, 1.3];
+        const truckXPositions = [-1.3, 1.3]; // 앞뒤 축 위치
 
-        truckXPositions.forEach(x => {
-            // 트럭 뭉치(Truck Assembly)를 위한 그룹 생성
-            const truckAssembly = new THREE.Group();
+        truckXPositions.forEach(xPos => {
+            // 축(Truck Shaft) 생성
+            const truck = new THREE.Mesh(truckGeo, truckMat);
             
-            // 1. 실제 금속 축(Truck) 생성
-            const truckShaft = new THREE.Mesh(truckGeo, truckMat);
-            // 실린더는 기본적으로 Y축 방향임. 데크 너비 방향에 맞춤.
-            truckAssembly.add(truckShaft);
+            // [방향] 데크가 눕혀진 상태에서 축을 짧은 면 방향으로 눕힘
+            truck.rotation.x = Math.PI / 2; 
+            // [위치] 데크의 아래쪽(Z축 음수 방향)으로 내림
+            truck.position.set(xPos, 0, -0.2); 
+            boardGroup.add(truck);
 
-            // 2. 바퀴 생성 (축의 양 끝단에 배치)
-            const wheelDist = 0.55; // 축의 중심에서 바퀴까지 거리
-            
-            [wheelDist, -wheelDist].forEach(y => {
+            // 바퀴(Wheel) 생성
+            const wheelDist = 0.55; 
+            [wheelDist, -wheelDist].forEach(yPos => {
                 const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-                // 바퀴를 축 방향에 맞춰서 90도 회전
+                
+                // [수직 정렬] 바퀴는 축과 90도를 이뤄야 함
+                // 축이 이미 rotation.x를 했으므로, 바퀴는 기본 서 있는 상태에서 
+                // 굴러가는 면이 앞(X)을 보게만 조절 (rotation.z 사용)
                 wheel.rotation.z = Math.PI / 2; 
-                wheel.position.y = y; // 축(Shaft)을 따라 이동
-                truckAssembly.add(wheel);
+                
+                // [위치] 축의 양 끝(yPos)에 정확히 배치
+                wheel.position.set(xPos, yPos, -0.2); 
+                boardGroup.add(wheel);
             });
-
-            // 3. 트럭 뭉치 전체 회전 및 배치
-            // 데크 아래에 붙이기 위해 뭉치 전체를 X축으로 눕힘
-            truckAssembly.rotation.x = Math.PI / 2;
-            truckAssembly.position.set(x, 0, -0.15); // 데크 아래에 위치
-            
-            boardGroup.add(truckAssembly);
         });
 
-        boardGroup.position.y = 4.8; 
-        boardGroup.rotation.z = Math.PI / 12;
+        boardGroup.position.y = 4.5;
+        boardGroup.rotation.z = Math.PI / 10;
         boardGroup.rotation.y = -Math.PI / 6;
         lightstick.add(boardGroup);
 
         // --- 3. 손잡이 ---
-        const handleGroup = new THREE.Group();
         const stick = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.1, 8.5, 32), new THREE.MeshStandardMaterial({ color: 0x111111 }));
-        stick.position.y = -3.2;
-        handleGroup.add(stick);
-        lightstick.add(handleGroup);
+        stick.position.y = -3.5;
+        lightstick.add(stick);
+        
         lightstick.position.y = -1;
 
-        window.addEventListener('resize', onWindowResize, false);
-    }
-
-    function onWindowResize() {
-        camera.aspect = window.innerWidth / window.innerHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     }
 
     function animate() {
         requestAnimationFrame(animate);
         let elapsedTime = clock.getElapsedTime();
-        if (globe) globe.material.uniforms.time.value = elapsedTime;
-        boardGroup.position.y = 4.8 + Math.sin(elapsedTime * 1.5) * 0.25;
-        scene.rotation.y += 0.003;
+        boardGroup.position.y = 4.5 + Math.sin(elapsedTime * 1.5) * 0.2;
+        scene.rotation.y += 0.005;
         renderer.render(scene, camera);
     }
 </script>
