@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KICKFLIP 3D REAL TRUCK STRUCTURE</title>
+    <title>KICKFLIP 3D FIXED TRUCKS</title>
     <style>
         body { margin: 0; background: #ffffff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
         canvas { display: block; }
@@ -72,7 +72,7 @@
         // --- 2. 스케이트보드 (데크 + 트럭 + 바퀴) ---
         boardGroup = new THREE.Group();
 
-        // [데크] 얇은 평면 형태
+        // [데크]
         const w = 1.3, l = 4.2, r = w / 2;
         const deckShape = new THREE.Shape();
         deckShape.absarc(l/2 - r, 0, r, Math.PI * 1.5, Math.PI * 0.5, false);
@@ -85,53 +85,51 @@
         deck.rotation.x = Math.PI / 2; 
         boardGroup.add(deck);
 
-        // [트럭 및 바퀴 세팅]
-        const truckGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.2, 16); // 짧은 면(너비) 방향으로 놓일 축
+        // [트럭 및 바퀴]
+        const truckGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.2, 16);
         const truckMat = new THREE.MeshStandardMaterial({ color: 0x777777 });
         const wheelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.15, 32);
         const wheelMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
 
-        const truckPositionsX = [-1.3, 1.3]; // 데크의 앞/뒤 위치
+        const truckPositionsX = [-1.3, 1.3];
 
-                truckPositionsX.forEach(xPos => {
-            // 1. 트럭(축) 배치: 기본 Cylinder(세로)를 X축 기준으로 90도 회전시켜 가로로 눕힙니다.
+        truckPositionsX.forEach(xPos => {
+            // 트럭 생성 및 회전 (데크 아래 가로 방향)
             const truck = new THREE.Mesh(truckGeo, truckMat);
-            // 데크가 눕혀진 방향(X-Y평면)에 맞춰 축을 가로(Y축 방향)로 눕힙니다.
             truck.rotation.x = Math.PI / 2; 
-            truck.position.set(xPos, 0, -0.15); // 데크 아래쪽(Z축 음수)으로 배치
+            truck.position.set(xPos, 0, -0.15); 
             boardGroup.add(truck);
 
-            // 2. 바퀴 배치: 트럭의 양 끝단에 정렬
+            // 바퀴 배치: 축이 이미 x축으로 90도 회전했으므로, 
+            // 바퀴 역시 x축으로 90도 회전시켜 축과 평행하게 만든 뒤 y축 거리(wheelDist)를 조절합니다.
             const wheelDist = 0.55; 
             [wheelDist, -wheelDist].forEach(yPos => {
                 const wheel = new THREE.Mesh(wheelGeo, wheelMat);
                 
-                // 바퀴를 축의 방향과 일치하게 회전 (Y축 방향으로 눕힘)
+                // 축과 동일하게 x축으로 90도 눕힙니다.
+                wheel.rotation.x = Math.PI / 2; 
+                // 바퀴가 굴러가는 면이 앞(x)을 보도록 z축을 추가로 90도 돌립니다.
                 wheel.rotation.z = Math.PI / 2; 
                 
-                // 바퀴가 굴러가는 면이 바깥쪽을 향하도록 세팅
-                // 축의 위치(xPos), 축의 양 끝(yPos), 데크 아래(z)
+                // 위치 설정: x는 앞뒤, y는 좌우, z는 높이
                 wheel.position.set(xPos, yPos, -0.15); 
                 boardGroup.add(wheel);
             });
         });
 
-
         boardGroup.position.y = 4.8; 
-        boardGroup.rotation.z = Math.PI / 12; // 사선 배치
+        boardGroup.rotation.z = Math.PI / 12;
         boardGroup.rotation.y = -Math.PI / 6;
         lightstick.add(boardGroup);
 
-        // --- 3. 손잡이 섹션 ---
+        // --- 3. 손잡이 ---
         const handleGroup = new THREE.Group();
         const connector = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.4, 0.6, 32), new THREE.MeshStandardMaterial({ color: 0xffffff }));
         connector.position.y = 1.3;
         handleGroup.add(connector);
-
         const stick = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.1, 8.5, 32), new THREE.MeshStandardMaterial({ color: 0x111111 }));
         stick.position.y = -3.2;
         handleGroup.add(stick);
-
         lightstick.add(handleGroup);
         lightstick.position.y = -1;
 
@@ -148,11 +146,7 @@
         requestAnimationFrame(animate);
         let elapsedTime = clock.getElapsedTime();
         if (globe) globe.material.uniforms.time.value = elapsedTime;
-
-        // 보드 공중 부양 애니메이션
         boardGroup.position.y = 4.8 + Math.sin(elapsedTime * 1.5) * 0.25;
-        boardGroup.rotation.x = Math.sin(elapsedTime * 0.8) * 0.1;
-        
         scene.rotation.y += 0.003;
         renderer.render(scene, camera);
     }
