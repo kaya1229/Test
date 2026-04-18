@@ -115,7 +115,7 @@
         const tail = new THREE.Mesh(kickGeo, deckMat);
         tail.rotation.x = Math.PI / 2;
         
-        tail.position.set(-flatLen / 2, -0.5, 0); // 중앙판 반대쪽 끝
+        tail.position.set(-flatLen / 2, -0.01, 0); // 중앙판 반대쪽 끝
     tail.rotation.y = Math.PI-0.2; // 반대 방향
         boardGroup.add(tail);
 
