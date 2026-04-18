@@ -166,10 +166,10 @@
     let elapsedTime = clock.getElapsedTime();
     
     if (globe) globe.material.uniforms.time.value = elapsedTime;
-    
+
     // 보드 위아래 애니메이션 (높이 5.3 기준)
     if (boardGroup) boardGroup.position.y = 5.3 + Math.sin(elapsedTime * 1.5) * 0.25;
-    
+    scene.rotation.y += 0.003;
     // [수정] 응원봉 전체를 회전시켜 손잡이가 입체적으로 돌아가게 함
     if (lightstick) {
         lightstick.rotation.y += 0.005; // 회전 속도 조절
@@ -177,6 +177,8 @@
     
     renderer.render(scene, camera);
 }
+        
+
 
 </script>
 </body>
