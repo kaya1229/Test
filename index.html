@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KICKFLIP 3D SHADER V1</title>
+    <style>
+        body { margin: 0; background: #ffffff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
+        canvas { display: block; }
+        #info { position: absolute; bottom: 5%; width: 100%; text-align: center; color: #bbb; font-size: 11px; pointer-events: none; font-family: sans-serif; letter-spacing: 1px;}
+    </style>
+</head>
+<body>
+
+<div id="info">KICKFLIP OFFICIAL LIGHTSTICK CONCEPT</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+    let scene, camera, renderer, boardGroup, globe, handleGroup;
+    let clock = new THREE.Clock();
+
+    init();
+    animate();
+
+    function init() {
+        scene = new THREE.Scene();
+        camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.set(0, -1, 20); // 전체 뷰 확보
+
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        document.body.appendChild(renderer.domElement);
+
+        const mainLight = new THREE.DirectionalLight(0xffffff, 1.2);
+        mainLight.position.set(5, 10, 7.5);
+        scene.add(mainLight);
+        scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+        const lightstick = new THREE.Group();
+        scene.add(lightstick);
+
+        // --- [핵심] 커스텀 물결 쉐이더 구체 구현 ---
+        
+        // 유니폼 변수: 프래그먼트 쉐이더에 전달될 외부 변수
+        const waveUniforms = {
+            time: { value: 0 },
+            colorTop: { value: new THREE.Color(0xffffff) }, // 상단 투명
+            colorBottom: { value: new THREE.Color(0x222222) }, // 하단 회색빛
+            opacityTop: { value: 0.15 }, // 상단 투명도
+            opacityBottom: { value: 0.3 } // 하단 회색빛 투명도
+        };
+
+        // 버텍스 쉐이더 (정점 위치 처리)
+        const vertexShader = `
+            varying vec2 vUv;
+            varying vec3 vPosition;
+            void main() {
+                vUv = uv;
+                vPosition = position;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `;
+
+        // 프래그먼트 쉐이더 (색상 및 물결 처리)
+        const fragmentShader = `
+            uniform float time;
+            uniform vec3 colorTop;
+            uniform vec3 colorBottom;
+            uniform float opacityTop;
+            uniform float opacityBottom;
+            varying vec2 vUv;
+            varying vec3 vPosition;
+
+            void main() {
+                // 물결 로직: 시간과 정점 위치(Uv.x)를 이용해 물결의 높이(y)를 계산
+                // 구체 절반(y=0) 부근에서 끊임없이 넘실거림
+                float wave = sin(vUv.x * 20.0 + time * 3.0) * 0.04 + sin(vUv.x * 10.0 - time * 2.0) * 0.02;
+                float edge = 0.5 + wave; // 0.5는 구체의 절반 위치
+
+                // 경계면을 기준으로 상단/하단 색상 및 투명도 부드럽게 혼합 (smoothstep)
+                float mixFactor = smoothstep(edge - 0.01, edge + 0.01, vUv.y);
+                
+                vec3 finalColor = mix(colorBottom, colorTop, mixFactor);
+                float finalOpacity = mix(opacityBottom, opacityTop, mixFactor);
+
+                gl_FragColor = vec4(finalColor, finalOpacity);
+            }
+        `;
+
+        const globeGeo = new THREE.SphereGeometry(2.8, 128, 128); // 쉐이더를 위해 정점을 촘촘히
+        const globeMat = new THREE.ShaderMaterial({
+            uniforms: waveUniforms,
+            vertexShader: vertexShader,
+            fragmentShader: fragmentShader,
+            transparent: true,
+            depthWrite: false, // 투명도 겹침 문제 해결
+            side: THREE.DoubleSide // 구체 안쪽도 보이게
+        });
+
+        globe = new THREE.Mesh(globeGeo, globeMat);
+        globe.position.y = 4;
+        lightstick.add(globe);
+
+        // --- 스케이트보드 (데크 너비 및 두께 최적화) ---
+        boardGroup = new THREE.Group();
+        
+        const deckShape = new THREE.Shape();
+        deckShape.moveTo(-1.8, 0);
+        deckShape.quadraticCurveTo(0, -0.1, 1.8, 0);
+        deckShape.lineTo(2.0, 0.4);
+        deckShape.lineTo(1.8, 0.5);
+        deckShape.lineTo(-1.8, 0.5);
+        deckShape.lineTo(-2.0, 0.4);
+        deckShape.closePath();
+
+        const extrudeSettings = { depth: 1.2, bevelEnabled: true, bevelThickness: 0.05, bevelSize: 0.05 };
+        const deckGeo = new THREE.ExtrudeGeometry(deckShape, extrudeSettings);
+        const deckMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.1 });
+        const deck = new THREE.Mesh(deckGeo, deckMat);
+        deck.position.set(0, 0, -0.6); 
+        boardGroup.add(deck);
+
+        const wheelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.15, 32);
+        const wheelMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const truckGeo = new THREE.BoxGeometry(0.1, 0.35, 0.8);
+        const truckMat = new THREE.MeshStandardMaterial({ color: 0x555555 });
+
+        [[-1.2, 0], [1.2, 0]].forEach(pos => {
+            const truck = new THREE.Mesh(truckGeo, truckMat);
+            truck.position.set(pos[0], -0.05, 0);
+            boardGroup.add(truck);
+            for(let z of [0.35, -0.35]) {
+                const w = new THREE.Mesh(wheelGeo, wheelMat);
+                w.rotation.x = Math.PI / 2;
+                w.position.set(pos[0], -0.2, z);
+                boardGroup.add(w);
+            }
+        });
+
+        boardGroup.position.y = 4.3; 
+        boardGroup.rotation.z = Math.PI / 9; 
+        boardGroup.rotation.y = -Math.PI / 5;
+        lightstick.add(boardGroup);
+
+        // --- 손잡이 섹션 ---
+        handleGroup = new THREE.Group();
+        const connGeo = new THREE.CylinderGeometry(1.6, 1.4, 0.6, 32);
+        const connMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        const connector = new THREE.Mesh(connGeo, connMat);
+        connector.position.y = 1.0;
+        handleGroup.add(connector);
+
+        const stickGeo = new THREE.CylinderGeometry(1.3, 1.1, 6.5, 32);
+        const stickMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
+        const stick = new THREE.Mesh(stickGeo, stickMat);
+        stick.position.y = -2.5;
+        handleGroup.add(stick);
+
+        const btnGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.1, 32);
+        const btnMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const button = new THREE.Mesh(btnGeo, btnMat);
+        button.rotation.x = Math.PI / 2;
+        button.position.set(0, -1, 1.35);
+        handleGroup.add(button);
+
+        lightstick.add(handleGroup);
+        lightstick.position.y = -1; 
+
+        window.addEventListener('resize', onWindowResize, false);
+    }
+
+    function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        
+        // 시간 업데이트 (쉐이더 애니메이션용)
+        let elapsedTime = clock.getElapsedTime();
+        globe.material.uniforms.time.value = elapsedTime;
+
+        // 보드 애니메이션
+        boardGroup.position.y = 4.3 + Math.sin(elapsedTime * 1.5) * 0.3;
+        boardGroup.rotation.x = Math.sin(elapsedTime * 0.8) * 0.1;
+        
+        // 전체 부드러운 회전
+        scene.rotation.y += 0.003;
+
+        renderer.render(scene, camera);
+    }
+</script>
+</body>
+</html>
