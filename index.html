@@ -16,7 +16,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-    let scene, camera, renderer, boardGroup, globe;
+    let scene, camera, renderer, boardGroup, globe, lightstick;
     let clock = new THREE.Clock();
 
     init();
@@ -167,6 +167,10 @@
         if (globe) globe.material.uniforms.time.value = elapsedTime;
         boardGroup.position.y = 5.3 + Math.sin(elapsedTime * 1.5) * 0.25;
         scene.rotation.y += 0.003;
+
+        if (lightstick) {
+        lightstick.rotation.y += 0.005; // 회전 속도 조절
+        }
         renderer.render(scene, camera);
     }
 </script>
