@@ -37,8 +37,9 @@
         scene.add(mainLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 
-        const lightstick = new THREE.Group();
+        lightstick = new THREE.Group();
         scene.add(lightstick);
+        const w = 1.3;
 
         // --- 1. 푸른색 물결 쉐이더 구체 ---
         const waveUniforms = {
@@ -177,8 +178,15 @@ boardGroup.add(tail);
         stick.position.y = -3.2;
         handleGroup.add(stick);
 
-        lightstick.add(handleGroup);
-        lightstick.position.y = -1;}
+                lightstick.add(handleGroup);
+        lightstick.position.y = -1;
+        
+        // 여기에 카메라나 응원봉 초기 각도를 넣어도 좋습니다.
+        lightstick.rotation.x = 0.1; 
+
+        window.addEventListener('resize', onWindowResize, false);
+    } // <--- init 함수를 여기서 정확히 닫아주세요.
+
 
 
     function onWindowResize() {
