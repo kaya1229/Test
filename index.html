@@ -108,7 +108,7 @@
         const deckGeo = new THREE.ExtrudeGeometry(deckShape, extrudeSettings);
 
         // 정점 변형: 중앙 평면을 확실히 유지
-        const pos = deckGeo.attributes.position;
+        /*const pos = deckGeo.attributes.position;
         // kickStart 지점을 더 바깥으로 밀어 중앙 평면 구간 확보 (l/2가 끝이므로 1.4 지점부터 킥 시작)
         const kickStart = 1.4; 
 
@@ -121,7 +121,7 @@
                 pos.setZ(i, pos.getZ(i) + lift); 
             }
         }
-        deckGeo.computeVertexNormals();
+        deckGeo.computeVertexNormals();*/
 
         const deckMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.2 });
         const deck = new THREE.Mesh(deckGeo, deckMat);
