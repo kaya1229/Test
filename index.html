@@ -15,8 +15,11 @@
 <div id="info">KICKFLIP OFFICIAL LIGHTSTICK CONCEPT</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+
 <script>
-    let scene, camera, renderer, boardGroup, globe,lightstick;
+    let scene, camera, renderer, boardGroup, globe,lightstick,controls;
     let clock = new THREE.Clock();
 
     init();
@@ -185,6 +188,12 @@
         // 화면 크기가 변할 때 대응 (추가)
         window.addEventListener('resize', onWindowResize, false);
     } // <--- 여기서 init 함수를 확실히 닫아줍니다.
+        // 드래그 제어 추가
+        controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // 부드러운 움직임 효과
+        controls.dampingFactor = 0.05;
+        controls.minDistance = 15;      // 너무 가깝게 못 오게
+        controls.maxDistance = 50;      // 너무 멀게 못 가게
 
 
 
@@ -194,22 +203,25 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
     }
 
-    function animate() {
-    requestAnimationFrame(animate);
-    let elapsedTime = clock.getElapsedTime();
-    
-    if (globe) globe.material.uniforms.time.value = elapsedTime;
-
-    // 보드 위아래 애니메이션 (높이 5.3 기준)
-    if (boardGroup) boardGroup.position.y = 5.3 + Math.sin(elapsedTime * 1.5) * 0.25;
-    
-    // [수정] 응원봉 전체를 회전시켜 손잡이가 입체적으로 돌아가게 함
-    if (lightstick) {
-        lightstick.rotation.y += 0.005; // 회전 속도 조절
+        function animate() {
+        requestAnimationFrame(animate);
+        let elapsedTime = clock.getElapsedTime();
+        
+        if (globe) globe.material.uniforms.time.value = elapsedTime;
+        if (boardGroup) boardGroup.position.y = 5.3 + Math.sin(elapsedTime * 1.5) * 0.25;
+        
+        // 드래그 기능 업데이트
+        if (controls) controls.update(); 
+        
+        if (lightstick) {
+            // 사용자가 드래그 중일 때는 자동 회전을 잠시 멈추고 싶다면 조건문을 걸 수 있지만,
+            // 일단은 같이 돌아가게 두겠습니다.
+            lightstick.rotation.y += 0.005; 
+        }
+        
+        renderer.render(scene, camera);
     }
-    
-    renderer.render(scene, camera);
-}
+
         
 
 
