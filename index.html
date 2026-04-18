@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KICKFLIP 3D SHADER V1</title>
+    <title>KICKFLIP 3D ULTIMATE VERSION</title>
     <style>
         body { margin: 0; background: #ffffff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
         canvas { display: block; }
@@ -25,7 +25,7 @@
     function init() {
         scene = new THREE.Scene();
         camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.set(0, -1, 20); // 전체 뷰 확보
+        camera.position.set(0, 0, 22); 
 
         renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -40,29 +40,23 @@
         const lightstick = new THREE.Group();
         scene.add(lightstick);
 
-        // --- [핵심] 커스텀 물결 쉐이더 구체 구현 ---
-        
-        // 유니폼 변수: 프래그먼트 쉐이더에 전달될 외부 변수
+        // --- 1. 푸른색 물결 쉐이더 구체 ---
         const waveUniforms = {
             time: { value: 0 },
-            colorTop: { value: new THREE.Color(0xffffff) }, // 상단 투명
-            colorBottom: { value: new THREE.Color(0x0055ff) }, // 하단 회색빛
-            opacityTop: { value: 0.15 }, // 상단 투명도
-            opacityBottom: { value: 0.3 } // 하단 회색빛 투명도
+            colorTop: { value: new THREE.Color(0xffffff) },
+            colorBottom: { value: new THREE.Color(0x0055ff) }, // 푸른색 반영
+            opacityTop: { value: 0.15 },
+            opacityBottom: { value: 0.4 } // 푸른색 농도 조절
         };
 
-        // 버텍스 쉐이더 (정점 위치 처리)
         const vertexShader = `
             varying vec2 vUv;
-            varying vec3 vPosition;
             void main() {
                 vUv = uv;
-                vPosition = position;
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
             }
         `;
 
-        // 프래그먼트 쉐이더 (색상 및 물결 처리)
         const fragmentShader = `
             uniform float time;
             uniform vec3 colorTop;
@@ -70,104 +64,92 @@
             uniform float opacityTop;
             uniform float opacityBottom;
             varying vec2 vUv;
-            varying vec3 vPosition;
-
             void main() {
-                // 물결 로직: 시간과 정점 위치(Uv.x)를 이용해 물결의 높이(y)를 계산
-                // 구체 절반(y=0) 부근에서 끊임없이 넘실거림
-                float wave = sin(vUv.x * 20.0 + time * 3.0) * 0.04 + sin(vUv.x * 10.0 - time * 2.0) * 0.02;
-                float edge = 0.5 + wave; // 0.5는 구체의 절반 위치
-
-                // 경계면을 기준으로 상단/하단 색상 및 투명도 부드럽게 혼합 (smoothstep)
+                float wave = sin(vUv.x * 15.0 + time * 2.5) * 0.03 + sin(vUv.x * 8.0 - time * 1.5) * 0.02;
+                float edge = 0.5 + wave;
                 float mixFactor = smoothstep(edge - 0.01, edge + 0.01, vUv.y);
-                
                 vec3 finalColor = mix(colorBottom, colorTop, mixFactor);
                 float finalOpacity = mix(opacityBottom, opacityTop, mixFactor);
-
                 gl_FragColor = vec4(finalColor, finalOpacity);
             }
         `;
 
-        const globeGeo = new THREE.SphereGeometry(2.8, 128, 128); // 쉐이더를 위해 정점을 촘촘히
+        const globeGeo = new THREE.SphereGeometry(2.8, 128, 128);
         const globeMat = new THREE.ShaderMaterial({
             uniforms: waveUniforms,
             vertexShader: vertexShader,
             fragmentShader: fragmentShader,
             transparent: true,
-            depthWrite: false, // 투명도 겹침 문제 해결
-            side: THREE.DoubleSide // 구체 안쪽도 보이게
+            depthWrite: false,
+            side: THREE.DoubleSide
         });
 
         globe = new THREE.Mesh(globeGeo, globeMat);
-        globe.position.y = 4;
+        globe.position.y = 4.5;
         lightstick.add(globe);
 
-        // --- 스케이트보드 (데크 너비 및 두께 최적화) ---
-        // --- 스케이트보드 생성 부분 수정 ---
+        // --- 2. 얇고 휜 스케이트보드 (수정사항 반영) ---
+        boardGroup = new THREE.Group();
 
-// 1. 데크를 위에서 본 '둥근 직사각형' 모양으로 그립니다.
-const deckShape = new THREE.Shape();
-const w = 1.3; // 보드 너비
-const l = 4.0; // 보드 길이
-const r = 0.5; // 끝부분 둥글기
+        // 데크 모양 (위에서 본 둥근 직사각형)
+        const deckShape = new THREE.Shape();
+        const w = 1.3, l = 4.0, r = 0.5;
+        deckShape.moveTo(-l/2 + r, -w/2);
+        deckShape.lineTo(l/2 - r, -w/2);
+        deckShape.absarc(l/2 - r, -w/2 + r, r, Math.PI * 1.5, 0, false);
+        deckShape.lineTo(l/2, w/2 - r);
+        deckShape.absarc(l/2 - r, w/2 - r, r, 0, Math.PI * 0.5, false);
+        deckShape.lineTo(-l/2 + r, w/2);
+        deckShape.absarc(-l/2 + r, w/2 - r, r, Math.PI * 0.5, Math.PI, false);
+        deckShape.lineTo(-l/2, -w/2 + r);
+        deckShape.absarc(-l/2 + r, -w/2 + r, r, Math.PI, Math.PI * 1.5, false);
 
-deckShape.moveTo(-l/2 + r, -w/2);
-deckShape.lineTo(l/2 - r, -w/2);
-deckShape.absarc(l/2 - r, -w/2 + r, r, Math.PI * 1.5, 0, false);
-deckShape.lineTo(l/2, w/2 - r);
-deckShape.absarc(l/2 - r, w/2 - r, r, 0, Math.PI * 0.5, false);
-deckShape.lineTo(-l/2 + r, w/2);
-deckShape.absarc(-l/2 + r, w/2 - r, r, Math.PI * 0.5, Math.PI, false);
-deckShape.lineTo(-l/2, -w/2 + r);
-deckShape.absarc(-l/2 + r, -w/2 + r, r, Math.PI, Math.PI * 1.5, false);
+        // 얇은 두께로 Extrude
+        const extrudeSettings = { depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02, bevelSegments: 3 };
+        const deckGeo = new THREE.ExtrudeGeometry(deckShape, extrudeSettings);
 
-// 2. 아주 얇은 두께로 뽑아냅니다.
-const extrudeSettings = { 
-    depth: 0.05, // 이게 판의 실제 두께입니다 (아주 얇게)
-    bevelEnabled: true, 
-    bevelThickness: 0.02, 
-    bevelSize: 0.02, 
-    bevelSegments: 3 
-};
+        // 정점 수정을 통한 킥(Kick) 구현
+        const pos = deckGeo.attributes.position;
+        for (let i = 0; i < pos.count; i++) {
+            let x = pos.getX(i);
+            if (Math.abs(x) > 1.2) {
+                let lift = Math.pow(Math.abs(x) - 1.2, 2) * 1.8; // 킥 높이 약간 더 강화
+                pos.setZ(i, pos.getZ(i) + lift); 
+            }
+        }
+        deckGeo.computeVertexNormals();
 
-const deckGeo = new THREE.ExtrudeGeometry(deckShape, extrudeSettings);
+        const deckMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.2 });
+        const deck = new THREE.Mesh(deckGeo, deckMat);
+        deck.rotation.x = Math.PI / 2; // 평면 보드를 눕힘
+        boardGroup.add(deck);
 
-// 3. [핵심] 양 끝의 정점을 위로 휘게 만듭니다.
-const pos = deckGeo.attributes.position;
-for (let i = 0; i < pos.count; i++) {
-    let x = pos.getX(i);
-    // 중심에서 멀어질수록(양 끝으로 갈수록) y값을 위로 올립니다.
-    if (Math.abs(x) > 1.2) {
-        let lift = Math.pow(Math.abs(x) - 1.2, 2) * 1.5; // 곡선형태로 솟게 함
-        pos.setZ(i, pos.getZ(i) + lift); // Extrude 방향이 Z이므로 Z축을 수정
-    }
-}
-deckGeo.computeVertexNormals(); // 그림자 계산 다시 하기
+        // 바퀴 추가
+        const wheelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.15, 32);
+        const wheelMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+        [[-1.2, 0.4], [1.2, 0.4], [-1.2, -0.4], [1.2, -0.4]].forEach(p => {
+            const w = new THREE.Mesh(wheelGeo, wheelMat);
+            w.rotation.x = Math.PI / 2;
+            w.position.set(p[0], p[1], -0.15); // 데크 아래 밀착
+            boardGroup.add(w);
+        });
 
-const deck = new THREE.Mesh(deckGeo, deckMat);
-deck.rotation.x = Math.PI / 2; // 평면으로 그렸으므로 눕혀줍니다.
+        boardGroup.position.y = 4.8; 
+        boardGroup.rotation.z = Math.PI / 10;
+        boardGroup.rotation.y = -Math.PI / 6;
+        lightstick.add(boardGroup);
 
-
-
-
-
-        // --- 손잡이 섹션 ---
+        // --- 3. 손잡이 섹션 ---
         handleGroup = new THREE.Group();
-        const connGeo = new THREE.CylinderGeometry(1.6, 1.4, 0.6, 32);
-        const connMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-        const connector = new THREE.Mesh(connGeo, connMat);
-        connector.position.y = 1.0;
+        const connector = new THREE.Mesh(new THREE.CylinderGeometry(1.6, 1.4, 0.6, 32), new THREE.MeshStandardMaterial({ color: 0xffffff }));
+        connector.position.y = 1.3;
         handleGroup.add(connector);
 
-        const stickGeo = new THREE.CylinderGeometry(1.3, 1.1, 6.5, 32);
-        const stickMat = new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5 });
-        const stick = new THREE.Mesh(stickGeo, stickMat);
-        stick.position.y = -2.5;
+        const stick = new THREE.Mesh(new THREE.CylinderGeometry(1.3, 1.1, 8.5, 32), new THREE.MeshStandardMaterial({ color: 0x111111 }));
+        stick.position.y = -3.2;
         handleGroup.add(stick);
 
-        const btnGeo = new THREE.CylinderGeometry(0.25, 0.25, 0.1, 32);
-        const btnMat = new THREE.MeshStandardMaterial({ color: 0x333333 });
-        const button = new THREE.Mesh(btnGeo, btnMat);
+        const button = new THREE.Mesh(new THREE.CylinderGeometry(0.25, 0.25, 0.1, 32), new THREE.MeshStandardMaterial({ color: 0x333333 }));
         button.rotation.x = Math.PI / 2;
         button.position.set(0, -1, 1.35);
         handleGroup.add(button);
@@ -186,18 +168,15 @@ deck.rotation.x = Math.PI / 2; // 평면으로 그렸으므로 눕혀줍니다.
 
     function animate() {
         requestAnimationFrame(animate);
-        
-        // 시간 업데이트 (쉐이더 애니메이션용)
         let elapsedTime = clock.getElapsedTime();
-        globe.material.uniforms.time.value = elapsedTime;
+        
+        if (globe) globe.material.uniforms.time.value = elapsedTime;
 
         // 보드 애니메이션
-        boardGroup.position.y = 4.3 + Math.sin(elapsedTime * 1.5) * 0.3;
+        boardGroup.position.y = 4.8 + Math.sin(elapsedTime * 1.5) * 0.3;
         boardGroup.rotation.x = Math.sin(elapsedTime * 0.8) * 0.1;
         
-        // 전체 부드러운 회전
         scene.rotation.y += 0.003;
-
         renderer.render(scene, camera);
     }
 </script>
