@@ -104,63 +104,51 @@
 
         // --- 스케이트보드 (데크 너비 및 두께 최적화) ---
         // --- 스케이트보드 생성 부분 수정 ---
-boardGroup = new THREE.Group();
 
-// 1. 데크 Shape 정의 (양끝 라운딩 및 킥 구현)
+// 1. 데크를 위에서 본 '둥근 직사각형' 모양으로 그립니다.
 const deckShape = new THREE.Shape();
-// 코에서 시작
-deckShape.moveTo(-1.8, 0.1); 
-// 중앙 메인 곡선
-deckShape.quadraticCurveTo(0, -0.1, 1.8, 0.1); 
-// 테일 라운딩 및 킥 (위로 솟게)
-deckShape.quadraticCurveTo(2.1, 0.2, 1.9, 0.5); 
-deckShape.lineTo(-1.9, 0.5); // 테일 끝선
-// 노즈 라운딩 및 킥 (위로 솟게)
-deckShape.quadraticCurveTo(-2.1, 0.2, -1.8, 0.1); 
-deckShape.closePath();
+const w = 1.3; // 보드 너비
+const l = 4.0; // 보드 길이
+const r = 0.5; // 끝부분 둥글기
 
-// 2. Extrude 설정 (두께 및 베벨 조절로 더 입체적으로)
+deckShape.moveTo(-l/2 + r, -w/2);
+deckShape.lineTo(l/2 - r, -w/2);
+deckShape.absarc(l/2 - r, -w/2 + r, r, Math.PI * 1.5, 0, false);
+deckShape.lineTo(l/2, w/2 - r);
+deckShape.absarc(l/2 - r, w/2 - r, r, 0, Math.PI * 0.5, false);
+deckShape.lineTo(-l/2 + r, w/2);
+deckShape.absarc(-l/2 + r, w/2 - r, r, Math.PI * 0.5, Math.PI, false);
+deckShape.lineTo(-l/2, -w/2 + r);
+deckShape.absarc(-l/2 + r, -w/2 + r, r, Math.PI, Math.PI * 1.5, false);
+
+// 2. 아주 얇은 두께로 뽑아냅니다.
 const extrudeSettings = { 
-    depth: 1.3, // 너비 살짝 확장
+    depth: 0.05, // 이게 판의 실제 두께입니다 (아주 얇게)
     bevelEnabled: true, 
-    bevelThickness: 0.02, // 베벨 두께 업
-    bevelSize: 0.05, 
-    bevelSegments: 5 // 더 부드러운 가장자리
+    bevelThickness: 0.02, 
+    bevelSize: 0.02, 
+    bevelSegments: 3 
 };
 
 const deckGeo = new THREE.ExtrudeGeometry(deckShape, extrudeSettings);
-// 색상은 현상태 유지
-const deckMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9, roughness: 0.1 });
-const deck = new THREE.Mesh(deckGeo, deckMat);
-// 중앙 정렬 미세 조정
-deck.position.set(0, 0, -0.65); 
-boardGroup.add(deck);
 
-// 3. 바퀴 및 트럭 (데크 크기에 맞춰 배치 조정)
-const wheelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.15, 32);
-const wheelMat = new THREE.MeshStandardMaterial({ color: 0xffffff }); // 색상은 현상태 유지
-const truckGeo = new THREE.BoxGeometry(0.1, 0.35, 0.8);
-const truckMat = new THREE.MeshStandardMaterial({ color: 0x444444 });
-
-[[-1.2, 0], [1.2, 0]].forEach(pos => {
-    // 트럭 배치
-    const truck = new THREE.Mesh(truckGeo, truckMat);
-    truck.position.set(pos[0], -0.05, 0);
-    boardGroup.add(truck);
-    // 바퀴 배치 (z축 간격 미세 조정)
-    for(let z of [0.4, -0.4]) {
-        const w = new THREE.Mesh(wheelGeo, wheelMat);
-        w.rotation.x = Math.PI / 2;
-        w.position.set(pos[0], -0.15, z); // y축 높이 미세 조정
-        boardGroup.add(w);
+// 3. [핵심] 양 끝의 정점을 위로 휘게 만듭니다.
+const pos = deckGeo.attributes.position;
+for (let i = 0; i < pos.count; i++) {
+    let x = pos.getX(i);
+    // 중심에서 멀어질수록(양 끝으로 갈수록) y값을 위로 올립니다.
+    if (Math.abs(x) > 1.2) {
+        let lift = Math.pow(Math.abs(x) - 1.2, 2) * 1.5; // 곡선형태로 솟게 함
+        pos.setZ(i, pos.getZ(i) + lift); // Extrude 방향이 Z이므로 Z축을 수정
     }
-});
+}
+deckGeo.computeVertexNormals(); // 그림자 계산 다시 하기
 
-// 전체 보드 그룹 배치 및 각도 현상태 유지
-boardGroup.position.y = 4.8;
-boardGroup.rotation.z = Math.PI / 10; // 튀어오르는 각도
-boardGroup.rotation.y = -Math.PI / 6;
-lightstick.add(boardGroup);
+const deck = new THREE.Mesh(deckGeo, deckMat);
+deck.rotation.x = Math.PI / 2; // 평면으로 그렸으므로 눕혀줍니다.
+
+
+
 
 
         // --- 손잡이 섹션 ---
