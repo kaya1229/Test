@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KICKFLIP 3D LIGHTSTICK FINAL</title>
+    <title>KICKFLIP 3D TRUCK FIXED</title>
     <style>
         body { margin: 0; background: #ffffff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
         canvas { display: block; }
@@ -16,8 +16,7 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
-    // 전역 변수 선언 (함수 밖에서도 접근 가능하도록)
-    let scene, camera, renderer, boardGroup, globe, lightstick;
+    let scene, camera, renderer, boardGroup, globe;
     let clock = new THREE.Clock();
 
     init();
@@ -38,7 +37,7 @@
         scene.add(mainLight);
         scene.add(new THREE.AmbientLight(0xffffff, 0.7));
 
-        lightstick = new THREE.Group();
+        const lightstick = new THREE.Group();
         scene.add(lightstick);
 
         // --- 1. 푸른색 물결 쉐이더 구체 ---
@@ -57,7 +56,7 @@
                 varying vec2 vUv;
                 void main() {
                     float wave = sin(vUv.x * 12.0 + time * 2.5) * 0.03 + sin(vUv.x * 6.0 - time * 1.5) * 0.02;
-                    float edge = 0.35 + wave; // 물결 높이 낮춤 반영
+                    float edge = 0.35 + wave;
                     float mixFactor = smoothstep(edge - 0.01, edge + 0.01, vUv.y);
                     gl_FragColor = vec4(mix(colorBottom, colorTop, mixFactor), mix(0.5, 0.1, mixFactor));
                 }
@@ -68,8 +67,10 @@
         globe.position.y = 4.5;
         lightstick.add(globe);
 
-        // --- 2. 스케이트보드 ---
+        // --- 2. 스케이트보드 (데크 + 트럭 + 바퀴) ---
         boardGroup = new THREE.Group();
+
+        // [데크]
         const w = 1.3, l = 4.2, r = w / 2;
         const deckShape = new THREE.Shape();
         deckShape.absarc(l/2 - r, 0, r, Math.PI * 1.5, Math.PI * 0.5, false);
@@ -79,59 +80,80 @@
         const deckGeo = new THREE.ExtrudeGeometry(deckShape, { depth: 0.05, bevelEnabled: true, bevelThickness: 0.02, bevelSize: 0.02 });
         const deckMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.2 });
         const deck = new THREE.Mesh(deckGeo, deckMat);
-        deck.rotation.x = Math.PI / 2;
+        deck.rotation.x = Math.PI / 2; // 데크를 눕힘
         boardGroup.add(deck);
 
+        // [트럭 및 바퀴]
         const truckGeo = new THREE.CylinderGeometry(0.06, 0.06, 1.2, 16);
         const truckMat = new THREE.MeshStandardMaterial({ color: 0x777777 });
         const wheelGeo = new THREE.CylinderGeometry(0.2, 0.2, 0.15, 32);
         const wheelMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
 
         const truckXPositions = [-1.3, 1.3];
+
         truckXPositions.forEach(x => {
+            // 트럭 뭉치(Truck Assembly)를 위한 그룹 생성
             const truckAssembly = new THREE.Group();
+            
+            // 1. 실제 금속 축(Truck) 생성
             const truckShaft = new THREE.Mesh(truckGeo, truckMat);
+            // 실린더는 기본적으로 Y축 방향임. 데크 너비 방향에 맞춤.
             truckAssembly.add(truckShaft);
 
-            const wheelDist = 0.55;
+            // 2. 바퀴 생성 (축의 양 끝단에 배치)
+            const wheelDist = 0.55; // 축의 중심에서 바퀴까지 거리
+            
             [wheelDist, -wheelDist].forEach(y => {
                 const wheel = new THREE.Mesh(wheelGeo, wheelMat);
-                wheel.rotation.z = Math.PI / 2; // 바퀴 수직 정렬 복구
-                wheel.position.y = y;
+                // 바퀴를 축 방향에 맞춰서 90도 회전
+                //wheel.rotation.z = Math.PI / 2; 
+                wheel.position.y = y; // 축(Shaft)을 따라 이동
                 truckAssembly.add(wheel);
             });
 
+            // 3. 트럭 뭉치 전체 회전 및 배치
+            // 데크 아래에 붙이기 위해 뭉치 전체를 X축으로 눕힘
             truckAssembly.rotation.x = Math.PI / 2;
-            truckAssembly.position.set(x, 0, -0.15); // 축 위치 보정
+            truckAssembly.position.set(x, -0.3, 0); // 데크 아래에 위치
+            
             boardGroup.add(truckAssembly);
         });
 
-        boardGroup.position.y = 5.3; // 보드 높이 상향 반영
+        boardGroup.position.y = 5.3; 
         boardGroup.rotation.z = Math.PI / 12;
         boardGroup.rotation.y = -Math.PI / 6;
         lightstick.add(boardGroup);
 
-        // --- 3. 손잡이 (입체적인 2단 구조 복구) ---
+                // --- 3. 손잡이 (입체적인 2단 구조로 복구) ---
         const handleGroup = new THREE.Group();
+
+        // [상단] 흰색 커넥터 (구체와 스틱을 연결하는 입체적인 마디)
         const connector = new THREE.Mesh(
             new THREE.CylinderGeometry(1.6, 1.4, 0.7, 32), 
-            new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.3, metalness: 0.1 })
+            new THREE.MeshStandardMaterial({ 
+                color: 0xffffff, 
+                roughness: 0.3, // 약간의 광택을 주어 입체감을 살림
+                metalness: 0.1 
+            })
         );
         connector.position.y = 1.3;
         handleGroup.add(connector);
 
+        // [하단] 검은색 본체 스틱
         const stick = new THREE.Mesh(
             new THREE.CylinderGeometry(1.3, 1.1, 8.5, 32), 
-            new THREE.MeshStandardMaterial({ color: 0x111111, roughness: 0.5, metalness: 0.2 })
+            new THREE.MeshStandardMaterial({ 
+                color: 0x111111, 
+                roughness: 0.5, 
+                metalness: 0.2 
+            })
         );
         stick.position.y = -3.2;
         handleGroup.add(stick);
 
         lightstick.add(handleGroup);
-        lightstick.position.y = -1;
+        lightstick.position.y = -1;}
 
-        window.addEventListener('resize', onWindowResize, false);
-    } // <-- 이 닫는 괄호가 없었습니다.
 
     function onWindowResize() {
         camera.aspect = window.innerWidth / window.innerHeight;
@@ -143,13 +165,8 @@
         requestAnimationFrame(animate);
         let elapsedTime = clock.getElapsedTime();
         if (globe) globe.material.uniforms.time.value = elapsedTime;
-
-        // 보드 애니메이션 (상향된 기준점 5.3에서 둥둥 떠다님)
-        if (boardGroup) boardGroup.position.y = 5.3 + Math.sin(elapsedTime * 1.5) * 0.25;
-        
-        // 전체 응원봉 회전으로 입체감 강조
-        if (lightstick) lightstick.rotation.y += 0.003;
-        
+        boardGroup.position.y = 5.3 + Math.sin(elapsedTime * 1.5) * 0.25;
+        scene.rotation.y += 0.003;
         renderer.render(scene, camera);
     }
 </script>
