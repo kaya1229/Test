@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>KICKFLIP 3D WAVE EDITION</title>
+    <title>KICKFLIP 3D CLEAR WAVE EDITION</title>
     <style>
         body { margin: 0; background: #ffffff; overflow: hidden; display: flex; justify-content: center; align-items: center; height: 100vh; }
         canvas { display: block; }
@@ -41,12 +41,12 @@
         const lightstick = new THREE.Group();
         scene.add(lightstick);
 
-        // --- 1. 투명 유리 구체 (회색 명암 제거) ---
+        // --- 1. 투명 유리 구체 (맑고 깨끗하게) ---
         const globeGeo = new THREE.SphereGeometry(2.8, 64, 64);
         const globeMat = new THREE.MeshPhongMaterial({
             color: 0xffffff,
             transparent: true,
-            opacity: 0.15, // 맑고 투명하게 조정
+            opacity: 0.15, 
             shininess: 120,
             specular: 0xffffff
         });
@@ -54,14 +54,14 @@
         globe.position.y = 4.5;
         lightstick.add(globe);
 
-        // --- [핵심] 2. 동적 파도 물결 레이어 (커스텀 쉐이더) ---
+        // --- [핵심] 2. 선명한 동적 파도 물결 레이어 (커스텀 쉐이더) ---
         
         // 유니폼 변수: 보드의 위치와 시간에 따라 곡률 조정
         const waveUniforms = {
             time: { value: 0 },
-            boardY: { value: 0 }, // 보드의 실시간 Y축 위치
-            color: { value: new THREE.Color(0xdddddd) }, // 물결 색상
-            opacity: { value: 0.25 } // 물결 투명도 (완전 투명하지 않게)
+            boardY: { value: 0 }, 
+            color: { value: new THREE.Color(0x3399ff) }, // 선명한 파란색 계열 물결 색상
+            opacity: { value: 0.6 } // 불투명도를 대폭 높여 확실히 보이게 함
         };
 
         const waveVertexShader = `
@@ -76,15 +76,15 @@
 
                 // 보드의 움직임에 따라 파동의 거세짐(amp)과 주파수(freq)를 조정
                 // 보드가 낮을수록(낮은Y) 물결이 더 거세게
-                float boardEffect = clamp(boardY / 3.0, 0.0, 1.0); // 0.0 ~ 1.0 범위로 정규화
-                float amp = mix(0.15, 0.03, boardEffect); // 거세짐: 0.15(거셈) ~ 0.03(잔잔함)
-                float freq = mix(25.0, 10.0, boardEffect); // 주파수: 25.0(촘촘) ~ 10.0(느슨)
+                float boardEffect = clamp(boardY / 3.0, 0.0, 1.0); 
+                float amp = mix(0.4, 0.1, boardEffect); // 거세짐: 0.4(거셈) ~ 0.1(잔잔함)으로 크기 키움
+                float freq = mix(30.0, 15.0, boardEffect); // 주파수: 30.0(촘촘) ~ 15.0(느슨)
 
-                // 시간에 따른 기본적인 파동 움직임 + 보드 위치에 따른 변조
-                float wave = sin(vUv.x * freq + time * 3.0) * amp + sin(vUv.x * 12.0 - time * 2.0) * 0.02;
+                // 파동 움직임: 곡률을 키우기 위해 amp와 freq 값을 조정
+                float wave = sin(vUv.x * freq + time * 3.5) * amp + sin(vUv.x * 15.0 - time * 2.5) * 0.05;
                 
-                // 물결의 기본 높이(0.4)에서 파동을 더함
-                float waveY = 0.4 + wave; 
+                // 물결의 기본 높이(0.6)에서 파동을 더함
+                float waveY = 0.6 + wave; 
 
                 gl_Position = projectionMatrix * modelViewMatrix * vec4(position.x, waveY, position.z, 1.0);
             }
@@ -98,23 +98,24 @@
             void main() {
                 // 부드러운 물결 가장자리를 위해 가장자리 옅어지게 처리
                 float edge = smoothstep(0.0, 0.1, vUv.x) * smoothstep(1.0, 0.9, vUv.x);
-                gl_FragColor = vec4(color, opacity * edge);
+                // 가장자리 옅어짐 효과를 줄여 선명함 강조
+                gl_FragColor = vec4(color, opacity * mix(0.8, 1.0, edge));
             }
         `;
 
         // 구체 내부를 가로지르는 촘촘한 평면 지오메트리
-        const waveGeo = new THREE.PlaneGeometry(5.0, 0.8, 128, 64);
+        const waveGeo = new THREE.PlaneGeometry(5.0, 1.2, 256, 128); // 촘촘함을 더해 물결 디테일 업
         const waveMat = new THREE.ShaderMaterial({
             uniforms: waveUniforms,
             vertexShader: waveVertexShader,
             fragmentShader: waveFragmentShader,
             transparent: true,
-            depthWrite: false, // 투명도 겹침 문제 해결
+            depthWrite: false, 
             side: THREE.DoubleSide
         });
 
         waveLayer = new THREE.Mesh(waveGeo, waveMat);
-        waveLayer.position.set(0, 3.8, 0.3); // 보드 아래, 구체 내부에 배치
+        waveLayer.position.set(0, 3.6, 0.3); // 보드 아래, 구체 내부에 배치
         lightstick.add(waveLayer);
 
         // --- 3. 스케이트보드 ---
@@ -195,14 +196,14 @@
         requestAnimationFrame(animate);
         let elapsedTime = clock.getElapsedTime();
         
-        // 보드 애니메이션 (y축 위치 계산)
+        // 보드 애니메이션
         let boardYPos = 4.8 + Math.sin(elapsedTime * 1.5) * 0.3;
         boardGroup.position.y = boardYPos;
         boardGroup.rotation.x = Math.sin(elapsedTime * 0.8) * 0.1;
         
         // [핵심] 파도 레이어 유니폼 변수 업데이트
         waveLayer.material.uniforms.time.value = elapsedTime;
-        waveLayer.material.uniforms.boardY.value = boardYPos; // 보드의 실시간 Y 위치 전달
+        waveLayer.material.uniforms.boardY.value = boardYPos; 
 
         scene.rotation.y += 0.003;
         renderer.render(scene, camera);
