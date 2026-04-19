@@ -77,7 +77,10 @@
                         // --- [데크: 킥 연결 수정 버전] ---
         const flatLen = 2.5; 
         const kickLen = 0.85;
-
+        const deckTopMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.2 }); // 윗면 (검정)
+        const deckSideMat = new THREE.MeshStandardMaterial({ color: 0x0055ff, metalness: 0.9, roughness: 0.3 }); // 옆면 (파랑)
+        const deckMat = [deckTopMat, deckSideMat];
+        
         // 베벨 옵션 강화: 모서리를 더 둥글고 부드럽게 깎음
         const deckBevel = { 
             depth: 0.05, 
@@ -87,7 +90,7 @@
             bevelSegments: 10      // 깎이는 면을 촘촘하게 해서 곡면화
         };
 
-        const deckMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.2 });
+        //const deckMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.2 });
 
         // 1. 중앙 평면부 (높이 기준점 0)
         const flatShape = new THREE.Shape();
