@@ -82,7 +82,7 @@
         const deckBevel = { 
             depth: 0.05, 
             bevelEnabled: true, 
-            bevelThickness: 0.04, // 두께감을 주어 더 부드럽게
+            bevelThickness: 0.01, // 두께감을 주어 더 부드럽게
             bevelSize: 0.04,      // 둥글게 깎이는 반경 확대
             bevelSegments: 10      // 깎이는 면을 촘촘하게 해서 곡면화
         };
@@ -103,6 +103,11 @@
         );
         deckMid.rotation.x = Math.PI / 2;
         deckMid.position.y = 0; // 기준점
+        // 조각 생성 후 반드시 추가하세요
+deckMid.geometry.computeVertexNormals();
+
+
+
         boardGroup.add(deckMid);
 
         // 2. 킥 조각 (기준점을 한쪽 끝으로 옮겨서 그리기)
@@ -119,6 +124,7 @@
         nose.rotation.x = Math.PI / 2;
         nose.position.set(flatLen / 2, 0, 0); // 중앙판 끝에 딱 붙임
         nose.rotation.y = 0.2; // 위로 휘어짐
+        nose.geometry.computeVertexNormals();
         boardGroup.add(nose);
 
         // 4. 뒤쪽 킥 (Tail)
@@ -127,6 +133,7 @@
         
         tail.position.set(-flatLen / 2, -0.05, 0); // 중앙판 반대쪽 끝
     tail.rotation.y = Math.PI-0.2; // 반대 방향
+        tail.geometry.computeVertexNormals();
         boardGroup.add(tail);
 
 
