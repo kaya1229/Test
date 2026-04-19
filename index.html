@@ -77,6 +77,16 @@
                         // --- [데크: 킥 연결 수정 버전] ---
         const flatLen = 2.5; 
         const kickLen = 0.85;
+
+        // 베벨 옵션 강화: 모서리를 더 둥글고 부드럽게 깎음
+        const deckBevel = { 
+            depth: 0.05, 
+            bevelEnabled: true, 
+            bevelThickness: 0.04, // 두께감을 주어 더 부드럽게
+            bevelSize: 0.04,      // 둥글게 깎이는 반경 확대
+            bevelSegments: 5      // 깎이는 면을 촘촘하게 해서 곡면화
+        };
+
         const deckMat = new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.8, roughness: 0.2 });
 
         // 1. 중앙 평면부 (높이 기준점 0)
